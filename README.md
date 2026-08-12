@@ -4,6 +4,8 @@
 
 A compact metric lives in the top bar. Click it to open a dashboard with CPU, memory, swap, GPU, storage, network, and process information.
 
+https://github.com/user-attachments/assets/4a33f637-2eac-4e74-89c9-834af9f2a63a
+
 ## Installation
 
 ### Install from GitHub
