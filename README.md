@@ -7,17 +7,9 @@ A compact metric lives in the top bar. Click it to open a dashboard with CPU, me
 https://github.com/user-attachments/assets/4a33f637-2eac-4e74-89c9-834af9f2a63a
 
 ## Installation
-
-### Install from GitHub
-
 ```bash
 omarchy plugin add https://github.com/niraletter/vitals.git --enable
 ```
-
-For a noninteractive install:
-
-```bash
-omarchy plugin add https://github.com/niraletter/vitals.git --enable --yes
 ```
 
 ### Install from a local checkout
