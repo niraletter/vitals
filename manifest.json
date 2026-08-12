@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "vitals",
+  "name": "Vitals",
+  "version": "1.0.0",
+  "author": "niraletter",
+  "description": "Native Linux CPU, memory, GPU, storage, network, and process monitor",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Vitals",
+    "description": "System vitals with a detailed dashboard",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
