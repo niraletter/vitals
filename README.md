@@ -10,7 +10,6 @@ https://github.com/user-attachments/assets/4a33f637-2eac-4e74-89c9-834af9f2a63a
 ```bash
 omarchy plugin add https://github.com/niraletter/vitals.git --enable
 ```
-```
 
 ### Install from a local checkout
 
