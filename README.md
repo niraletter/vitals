@@ -159,38 +159,6 @@ These are saved in `~/.config/omarchy/shell.json`:
 | Primary network interface | Yes |
 | Expanded modules, process filter, sort | No (session only) |
 
-## Development
-
-During development, copy changed files into the live plugin directory:
-
-```bash
-cp Panel.qml BarWidget.qml Model.js GpuLogic.js ProcessLogic.js MetricTiles.qml ProcessList.qml manifest.json \
-  ~/.config/omarchy/plugins/vitals/
-omarchy restart shell
-```
-
-**File roles:**
-| File | Role |
-| :--- | :--- |
-| `Panel.qml` | Shell panel, polling, parsers, bar snapshot |
-| `BarWidget.qml` | Top-bar widget and tooltip bridge |
-| `MetricTiles.qml` | Dashboard metric grid and expanded tile views |
-| `ProcessList.qml` | Process list, search, sort, and tree UI |
-| `GpuLogic.js` | GPU and network label helpers |
-| `ProcessLogic.js` | Process refresh script and CPU % math |
-| `Model.js` | Shared formatting helpers |
-| `manifest.json` | Plugin metadata |
-
-Use `omarchy dev link` while actively editing if you want the live plugin directory to point at your checkout.
-
-Validate before publishing:
-
-```bash
-omarchy plugin validate .
-```
-
-The manifest must keep the plugin ID `vitals`. Plugin IDs in the reserved `omarchy.*` namespace are not allowed.
-
 ## Updating and removing
 
 ```bash
