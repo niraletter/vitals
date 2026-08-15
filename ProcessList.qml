@@ -285,7 +285,7 @@ ColumnLayout {
 
                   Text {
                     text: processRow.expanded ? "⌄" : "›"
-                    color: Color.muted
+                    color: root.mutedText
                     font.family: Style.font.family
                     font.pixelSize: Style.font.body
                   }
@@ -307,7 +307,7 @@ ColumnLayout {
                   }
                   Text {
                     text: Model.formatMemory(root.processMemoryKB(processRow.modelData))
-                    color: Color.muted
+                    color: root.mutedText
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
                     horizontalAlignment: Text.AlignRight
@@ -315,7 +315,7 @@ ColumnLayout {
                   }
                   Text {
                     text: String(processRow.modelData.pid || "")
-                    color: Color.muted
+                    color: root.mutedText
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
                     horizontalAlignment: Text.AlignRight
@@ -348,7 +348,7 @@ ColumnLayout {
                 Text {
                   Layout.fillWidth: true
                   text: processRow.modelData.fullCommand || processRow.modelData.command || ""
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   wrapMode: Text.WrapAnywhere
@@ -359,7 +359,7 @@ ColumnLayout {
                   visible: text !== ""
                   Layout.fillWidth: true
                   text: root.processGpuDetails(processRow.modelData.pid)
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   elide: Text.ElideRight
@@ -368,7 +368,7 @@ ColumnLayout {
                   Layout.fillWidth: true
                   Text {
                     text: "PID " + String(processRow.modelData.pid || "--") + " · PPID " + String(processRow.modelData.ppid || "--") + " · " + root.processMemoryLabel(processRow.modelData)
-                    color: Color.muted
+                    color: root.mutedText
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
                   }
@@ -424,7 +424,7 @@ ColumnLayout {
                 Text {
                   visible: root.processTreeRows(processRow.modelData.pid).length === 0
                   text: "No parent or child processes in the current snapshot"
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                 }
@@ -437,7 +437,7 @@ ColumnLayout {
             anchors.centerIn: parent
             visible: processList.count === 0
             text: root.processSearch ? "No matching processes" : "Collecting process data…"
-            color: Color.muted
+            color: root.mutedText
             font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
           }
@@ -479,7 +479,7 @@ ColumnLayout {
           visible: root.actionMessage !== ""
           Layout.fillWidth: true
           text: root.actionMessage
-          color: Color.muted
+          color: root.mutedText
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           elide: Text.ElideRight

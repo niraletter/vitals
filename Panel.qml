@@ -156,6 +156,12 @@ Ui.Panel {
   readonly property int processJumpInset: Style.space(1)
   readonly property string processTreeFontFamily: "Liberation Mono"
   readonly property bool processListHasScrolled: processListScrollLocked
+  // Color.muted is often too dark on themed panels; lift it toward bar text.
+  readonly property color mutedText: Qt.rgba(
+    Color.muted.r * 0.18 + barForeground.r * 0.82,
+    Color.muted.g * 0.18 + barForeground.g * 0.82,
+    Color.muted.b * 0.18 + barForeground.b * 0.82,
+    1)
   property int splitterDelta: 0
   readonly property int displayedModuleGridHeight: Math.max(minimumModuleGridHeight, Math.min(560, moduleGridHeight + splitterDelta))
   readonly property int displayedProcessListHeight: Math.max(120, processListHeight - splitterDelta)
@@ -981,8 +987,7 @@ Ui.Panel {
     }
     if (metric === "memory") {
       var memoryLines = [
-        "Used · " + compactMemoryPair(usedMemoryKB, totalMemoryKB) + " (" + Math.round(memoryUsage) + "%)",
-        "Available · " + Model.formatMemory(memoryStats.MemAvailable || 0)
+        "Used · " + compactMemoryPair(usedMemoryKB, totalMemoryKB) + " (" + Math.round(memoryUsage) + "%)"
       ]
       if (totalSwapKB > 0) memoryLines.push("SWP · " + compactMemoryPair(usedSwapKB, totalSwapKB))
       return "Memory\n" + memoryLines.join("\n")
@@ -2966,14 +2971,14 @@ Ui.Panel {
             }
             Text {
               text: root.uptime || "Collecting system data…"
-              color: Color.muted
+              color: root.mutedText
               font.family: Style.font.family
               font.pixelSize: Style.font.bodySmall
             }
             Text {
               visible: root.lastMetricsUpdatedLabel !== ""
               text: root.lastMetricsUpdatedLabel
-              color: Color.muted
+              color: root.mutedText
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
             }
@@ -2998,7 +3003,7 @@ Ui.Panel {
             }
             Text {
               text: root.pollIntervalLabel()
-              color: Color.muted
+              color: root.mutedText
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
               horizontalAlignment: Text.AlignHCenter

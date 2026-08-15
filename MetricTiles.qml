@@ -78,7 +78,7 @@ ColumnLayout {
                 text: tile.modelData === "cpu" ? root.cpuTileBadge()
                   : tile.modelData === "gpu" ? root.gpuTileBadge()
                   : ""
-                color: Color.muted
+                color: root.mutedText
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
               }
@@ -233,7 +233,7 @@ ColumnLayout {
                 Text {
                   visible: root.modulesNano
                   text: root.moduleTileHeading(tile.modelData, tile.heading)
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   font.weight: Font.Medium
@@ -299,7 +299,7 @@ ColumnLayout {
                 Text {
                   visible: text !== ""
                   text: tile.detail
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   elide: Text.ElideRight
@@ -308,7 +308,7 @@ ColumnLayout {
                 Text {
                   visible: !root.modulesCompact && text !== ""
                   text: tile.secondDetail
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   elide: Text.ElideRight
@@ -370,7 +370,7 @@ ColumnLayout {
 
               Text {
                 text: root.cpuCoreViewLabel(root.cpuCoreViewMode) + " · right click"
-                color: Color.muted
+                color: root.mutedText
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
               }
@@ -475,7 +475,7 @@ ColumnLayout {
                     z: 1
                     Text {
                       text: "C" + (Number(coreTile.modelData.id) + 1) + root.cpuCoreTemperatureLabel(coreTile.modelData.id)
-                      color: Color.muted
+                      color: root.mutedText
                       font.family: Style.font.family
                       font.pixelSize: Style.font.caption
                     }
@@ -502,7 +502,7 @@ ColumnLayout {
                       width: parent.width
                       horizontalAlignment: Text.AlignHCenter
                       text: "C" + (Number(coreTile.modelData.id) + 1) + root.cpuCoreTemperatureLabel(coreTile.modelData.id)
-                      color: Color.muted
+                      color: root.mutedText
                       font.family: Style.font.family
                       font.pixelSize: Style.font.caption
                     }
@@ -564,7 +564,7 @@ ColumnLayout {
                     spacing: Style.spacing.sm
                     Text {
                       text: detailEntry.modelData.label
-                      color: detailEntry.modelData.highlighted ? Color.accent : Color.muted
+                      color: detailEntry.modelData.highlighted ? Color.accent : root.mutedText
                       font.family: Style.font.family
                       font.pixelSize: Style.font.caption
                       elide: Text.ElideRight
@@ -619,7 +619,7 @@ ColumnLayout {
 
                 Text {
                   text: "NAME"
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   font.weight: Font.DemiBold
@@ -627,7 +627,7 @@ ColumnLayout {
                 }
                 Text {
                   text: "GPU"
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   font.weight: Font.DemiBold
@@ -636,7 +636,7 @@ ColumnLayout {
                 }
                 Text {
                   text: "MEM"
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   font.weight: Font.DemiBold
@@ -645,7 +645,7 @@ ColumnLayout {
                 }
                 Text {
                   text: "PID"
-                  color: Color.muted
+                  color: root.mutedText
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                   font.weight: Font.DemiBold
@@ -692,7 +692,7 @@ ColumnLayout {
                     }
                     Text {
                       text: root.gpuProcessMemoryText(gpuProcessTile.modelData.memoryBytes)
-                      color: Color.muted
+                      color: root.mutedText
                       font.family: Style.font.family
                       font.pixelSize: Style.font.caption
                       horizontalAlignment: Text.AlignRight
@@ -700,7 +700,7 @@ ColumnLayout {
                     }
                     Text {
                       text: String(gpuProcessTile.modelData.pid || "")
-                      color: Color.muted
+                      color: root.mutedText
                       font.family: Style.font.family
                       font.pixelSize: Style.font.caption
                       horizontalAlignment: Text.AlignRight
@@ -720,7 +720,7 @@ ColumnLayout {
               Text {
                 visible: root.gpuProcessRows().length === 0
                 text: root.gpuProcessSupportMessage()
-                color: Color.muted
+                color: root.mutedText
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
                 wrapMode: Text.Wrap
@@ -731,7 +731,7 @@ ColumnLayout {
             Text {
               visible: root.expandedRows().length === 0
               text: "Collecting details…"
-              color: Color.muted
+              color: root.mutedText
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
             }
