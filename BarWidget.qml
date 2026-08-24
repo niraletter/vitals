@@ -65,14 +65,51 @@ BarWidget {
     }
   }
 
-  // Measure the widest label the current selection can produce, in the same
-  // font the button paints with, and reserve that much room. Without this the
-  // widget resizes on nearly every poll as values gain and lose digits.
+  // Width of one space in the label font, used as the gap between fields.
   TextMetrics {
-    id: widestLabelMetrics
+    id: spaceMetrics
     font.family: button.fontFamily
     font.pixelSize: button.fontSize
-    text: panelLoader.item ? panelLoader.item.barLabelReserve : ""
+    text: " "
+  }
+
+  // Each pinned metric is painted as its own field, so reserving width for the
+  // ones that churn (percentages) does not pad the rest of the label.
+  Row {
+    id: fields
+    anchors.centerIn: parent
+    spacing: spaceMetrics.advanceWidth
+    visible: !(root.bar && root.bar.vertical)
+
+    Repeater {
+      model: panelLoader.item ? panelLoader.item.barFields : []
+
+      Item {
+        required property var modelData
+        height: fieldText.implicitHeight
+        // Sized to the reserved text when the metric asks for a stable slot,
+        // and to its own content otherwise.
+        width: Math.max(fieldText.implicitWidth, reserveMetrics.advanceWidth)
+
+        TextMetrics {
+          id: reserveMetrics
+          font.family: button.fontFamily
+          font.pixelSize: button.fontSize
+          text: modelData.reserve
+        }
+
+        Text {
+          id: fieldText
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          text: modelData.text
+          color: button.foreground
+          font.family: button.fontFamily
+          font.pixelSize: button.fontSize
+          renderType: Text.NativeRendering
+        }
+      }
+    }
   }
 
   WidgetButton {
@@ -80,12 +117,18 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     tooltipText: panelLoader.item ? panelLoader.item.barTooltip : "Vitals"
-    text: panelLoader.item ? panelLoader.item.barLabel : " …"
+    // Horizontal bars paint the label through the Row above; the text is kept
+    // so vertical bars, which the Row does not handle, still render normally.
+    text: panelLoader.item ? panelLoader.item.barLabel : " …"
+    labelVisible: root.bar && root.bar.vertical
     active: root.opened
     useActiveColor: false
-    fixedWidth: widestLabelMetrics.text === "" || (root.bar && root.bar.vertical)
+    // The default padding suits the single-glyph widgets either side of us; on
+    // a label this wide it reads as a gap rather than as breathing room.
+    horizontalMargin: 3
+    fixedWidth: (root.bar && root.bar.vertical)
       ? -1
-      : Math.max(12, widestLabelMetrics.advanceWidth + scaledHorizontalMargin * 2)
+      : Math.max(12, fields.implicitWidth + scaledHorizontalMargin * 2)
 
     onPressed: function(mouseButton) {
       if (!panelLoader.item) return
