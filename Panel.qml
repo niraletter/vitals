@@ -455,23 +455,20 @@ Ui.Panel {
     return parts.join(" ")
   }
 
-  // One entry per pinned metric, each carrying the text to paint and the text
-  // to reserve room for (empty when the field should just size to its content).
-  // The bar renders these as separate fields so a wide reserve on one metric
-  // does not pad the whole label.
+  // One entry per pinned metric. The bar paints these as separate fields, each
+  // sized to its own content, so the metrics stay a tight group: no field
+  // reserves room for a value to grow, because that room shows as blank space
+  // while the value is short and breaks the bar's even spacing. The cost is
+  // that the widget's width follows the values it is showing.
   readonly property var barFields: {
     void barMetricDisplayTexts
-    if (!barMetrics.length) return [{ text: "󰋼 —", reserve: "" }]
+    if (!barMetrics.length) return [{ text: "󰋼 —" }]
     var fields = []
     for (var i = 0; i < barMetrics.length; i++) {
       var metric = barMetrics[i]
       var value = barMetricDisplayTexts[metric] !== undefined ? barMetricDisplayTexts[metric] : "…"
-      var reserve = barMetricReserve(metric)
       var prefix = metric === "network" ? "" : barIcon(metric) + " "
-      fields.push({
-        text: prefix + value,
-        reserve: reserve === "" ? "" : prefix + reserve
-      })
+      fields.push({ text: prefix + value })
     }
     return fields
   }
@@ -1016,16 +1013,6 @@ Ui.Panel {
     if (!barSyncPending || !barMetricPinned(source)) return
     barSyncPending = false
     syncBarMetricSnapshot()
-  }
-
-  // Percentages are the values that churn most -- they change on nearly every
-  // poll and swing between one and three digits -- so they get a slot sized for
-  // "100%" and stop shifting their neighbours. Rates are left to size
-  // themselves: reserving room for a peak they rarely reach reads as a gap in
-  // the bar, which costs more than the occasional reflow when a unit changes.
-  function barMetricReserve(metric) {
-    if (metric === "network" || metric === "disk") return ""
-    return "100%"
   }
 
   function barMetricValueFromSnapshot(metric) {

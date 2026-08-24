@@ -49,7 +49,11 @@ BarWidget {
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
-  readonly property real openPanelIndicatorWidth: button.labelWidth
+  // The label is painted by the field Row on horizontal bars, where the
+  // button's own hidden label would report a width of zero.
+  readonly property real openPanelIndicatorWidth: fields.visible
+    ? fields.implicitWidth
+    : button.labelWidth
 
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
@@ -84,30 +88,13 @@ BarWidget {
     Repeater {
       model: panelLoader.item ? panelLoader.item.barFields : []
 
-      Item {
+      Text {
         required property var modelData
-        height: fieldText.implicitHeight
-        // Sized to the reserved text when the metric asks for a stable slot,
-        // and to its own content otherwise.
-        width: Math.max(fieldText.implicitWidth, reserveMetrics.advanceWidth)
-
-        TextMetrics {
-          id: reserveMetrics
-          font.family: button.fontFamily
-          font.pixelSize: button.fontSize
-          text: modelData.reserve
-        }
-
-        Text {
-          id: fieldText
-          anchors.left: parent.left
-          anchors.verticalCenter: parent.verticalCenter
-          text: modelData.text
-          color: button.foreground
-          font.family: button.fontFamily
-          font.pixelSize: button.fontSize
-          renderType: Text.NativeRendering
-        }
+        text: modelData.text
+        color: button.foreground
+        font.family: button.fontFamily
+        font.pixelSize: button.fontSize
+        renderType: Text.NativeRendering
       }
     }
   }
@@ -125,7 +112,11 @@ BarWidget {
     useActiveColor: false
     // The default padding suits the single-glyph widgets either side of us; on
     // a label this wide it reads as a gap rather than as breathing room.
-    horizontalMargin: 3
+    // Trimmed from the 8.5 default: that value assumes the button pads a
+    // single glyph, and on a label this wide it pushed the widget's edges
+    // past the spacing the rest of the bar keeps. Measured against the
+    // neighbouring widgets, 6 lands the edges on the bar's own rhythm.
+    horizontalMargin: 6
     fixedWidth: (root.bar && root.bar.vertical)
       ? -1
       : Math.max(12, fields.implicitWidth + scaledHorizontalMargin * 2)
