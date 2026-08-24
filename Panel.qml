@@ -459,6 +459,12 @@ Ui.Panel {
     }
     return parts.join("  ")
   }
+  // Reactive form of barLabelWidest(), so the bar can bind its reserved width
+  // and have it recomputed whenever the pinned selection changes.
+  readonly property string barLabelReserve: {
+    void barMetrics
+    return barLabelWidest()
+  }
   readonly property string barTooltip: {
     void tooltipEpoch
     void cpuUsage
@@ -1000,6 +1006,29 @@ Ui.Panel {
     if (!barSyncPending || !barMetricPinned(source)) return
     barSyncPending = false
     syncBarMetricSnapshot()
+  }
+
+  // Widest value each metric can render, used to reserve a stable slot in the
+  // bar so the widget does not resize on every poll. Percentages top out at
+  // "100%"; rates are widest at "1023 KiB/s" (4 digits plus the longest unit
+  // that still takes them), which covers everything below the TiB/s range.
+  function barMetricWidestValue(metric) {
+    if (metric === "network") return "↓ 1023 KiB/s"
+    if (metric === "disk") return "R 1023 KiB/s"
+    return "100%"
+  }
+
+  // The bar label with every pinned metric at its widest, laid out exactly as
+  // barLabel builds the live string.
+  function barLabelWidest() {
+    if (!barMetrics.length) return "󰋼 —"
+    var parts = []
+    for (var i = 0; i < barMetrics.length; i++) {
+      var metric = barMetrics[i]
+      var widest = barMetricWidestValue(metric)
+      parts.push(metric === "network" ? widest : barIcon(metric) + " " + widest)
+    }
+    return parts.join("  ")
   }
 
   function barMetricValueFromSnapshot(metric) {

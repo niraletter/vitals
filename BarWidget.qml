@@ -65,6 +65,16 @@ BarWidget {
     }
   }
 
+  // Measure the widest label the current selection can produce, in the same
+  // font the button paints with, and reserve that much room. Without this the
+  // widget resizes on nearly every poll as values gain and lose digits.
+  TextMetrics {
+    id: widestLabelMetrics
+    font.family: button.fontFamily
+    font.pixelSize: button.fontSize
+    text: panelLoader.item ? panelLoader.item.barLabelReserve : ""
+  }
+
   WidgetButton {
     id: button
     anchors.fill: parent
@@ -73,6 +83,9 @@ BarWidget {
     text: panelLoader.item ? panelLoader.item.barLabel : " …"
     active: root.opened
     useActiveColor: false
+    fixedWidth: widestLabelMetrics.text === "" || (root.bar && root.bar.vertical)
+      ? -1
+      : Math.max(12, widestLabelMetrics.advanceWidth + scaledHorizontalMargin * 2)
 
     onPressed: function(mouseButton) {
       if (!panelLoader.item) return
