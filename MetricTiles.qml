@@ -275,7 +275,7 @@ ColumnLayout {
                 spacing: root.modulesCompact ? 1 : 1
                 z: 2
                 Text {
-                  text: tile.heading + (root.barMetric === tile.modelData ? " •" : "") + " " + (root.expandedModule === tile.modelData ? "⌃" : "⌄")
+                  text: tile.heading + (root.barMetrics.indexOf(tile.modelData) >= 0 ? " •" : "") + " " + (root.expandedModule === tile.modelData ? "⌃" : "⌄")
                   color: Color.accent
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption

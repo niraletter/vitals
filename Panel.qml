@@ -265,7 +265,7 @@ Ui.Panel {
   function moduleTileSuffix(moduleName) {
     if (moduleDensity >= 4) return ""
     var suffix = ""
-    if (barMetric === moduleName) suffix += " •"
+    if (barMetricPinned(moduleName)) suffix += " •"
     var expanded = moduleName === "cpu" ? cpuCoresExpanded : expandedModule === moduleName
     suffix += " " + (expanded ? "⌃" : "⌄")
     return suffix
@@ -410,15 +410,55 @@ Ui.Panel {
     drawLineSeries(primary, 0.82, filled)
   }
 
-  // The selected tile supplies the compact main-bar metric. It is persisted
-  // in this widget's inline shell.json settings by setBarMetric().
-  readonly property string barMetric: String(setting("barMetric", "memory"))
+  // The selected tiles supply the compact main-bar metrics. They are persisted
+  // in this widget's inline shell.json settings by setBarMetric(), which toggles
+  // one metric in or out. Older configs stored a single string rather than a
+  // list; barMetrics normalises both shapes.
+  readonly property var moduleOrder: ["cpu", "memory", "network", "disk", "gpu", "storage"]
+  readonly property var barMetrics: {
+    var raw = setting("barMetric", "memory")
+    // QML hands JSON arrays over as QVariantList, for which Array.isArray() is
+    // false, so detect list-likeness by shape instead of by type.
+    var list = (raw && typeof raw === "object" && typeof raw.length === "number")
+      ? raw
+      : [raw]
+    var seen = {}
+    for (var i = 0; i < list.length; i++)
+      seen[String(list[i])] = true
+    // Emit in canonical tile order so the bar layout does not shuffle. Building
+    // the result by hand keeps it a real JS Array rather than a QVariantList.
+    var ordered = []
+    for (var j = 0; j < moduleOrder.length; j++)
+      if (seen[moduleOrder[j]]) ordered.push(moduleOrder[j])
+    return ordered
+  }
+  // Kept for the many single-metric call sites; it is the first pinned metric.
+  readonly property string barMetric: barMetrics.length ? barMetrics[0] : ""
+  function barMetricPinned(metric) {
+    for (var i = 0; i < barMetrics.length; i++)
+      if (barMetrics[i] === metric) return true
+    return false
+  }
+  onBarMetricsChanged: {
+    if (barMetricSnapshot) refreshBarMetricDisplayTexts()
+    tooltipEpoch += 1
+    if (!opened) refreshSummary(true)
+  }
   property var barMetricSnapshot: null
   property bool barSyncPending: false
   property string barMetricDisplayText: "…"
-  readonly property string barLabel: barMetric === "network"
-    ? barMetricDisplayText
-    : barIcon(barMetric) + " " + barMetricDisplayText
+  property var barMetricDisplayTexts: ({})
+  readonly property string barLabel: {
+    void barMetricDisplayTexts
+    if (!barMetrics.length) return "󰋼 —"
+    var parts = []
+    for (var i = 0; i < barMetrics.length; i++) {
+      var metric = barMetrics[i]
+      var value = barMetricDisplayTexts[metric] !== undefined ? barMetricDisplayTexts[metric] : "…"
+      parts.push(metric === "network" ? value : barIcon(metric) + " " + value)
+    }
+    return parts.join("  ")
+  }
   readonly property string barTooltip: {
     void tooltipEpoch
     void cpuUsage
@@ -442,7 +482,11 @@ Ui.Panel {
     void gpuVramTotalBytes
     void gpuSharedMemoryBytes
     void mounts
-    return barMetricTooltip(barMetric, tooltipEpoch)
+    if (!barMetrics.length) return "Vitals\nNo metric pinned · middle click a tile"
+    var blocks = []
+    for (var i = 0; i < barMetrics.length; i++)
+      blocks.push(barMetricTooltip(barMetrics[i], tooltipEpoch))
+    return blocks.join("\n\n")
   }
   property int tooltipEpoch: 0
 
@@ -493,30 +537,34 @@ Ui.Panel {
   function refreshSummary(includeBarDetail) {
     if (opened) return
     var detail = includeBarDetail === true
-    switch (barMetric) {
-    case "cpu":
-      refreshCpu(detail)
-      break
-    case "memory":
-      refreshMemory()
-      break
-    case "network":
-      refreshNetworkRates()
-      if (detail) refreshNetworkDetails()
-      break
-    case "disk":
-      refreshDisk()
-      break
-    case "gpu":
-      if (!availableGpus.length) refreshGpuDiscovery()
-      else refreshSelectedGpuMetrics()
-      break
-    case "storage":
-      refreshMounts()
-      break
-    default:
-      refreshMemory()
-      break
+    var pinned = barMetrics
+    if (!pinned.length) {
+      if (detail) tooltipEpoch += 1
+      return
+    }
+    for (var i = 0; i < pinned.length; i++) {
+      switch (pinned[i]) {
+      case "cpu":
+        refreshCpu(detail)
+        break
+      case "memory":
+        refreshMemory()
+        break
+      case "network":
+        refreshNetworkRates()
+        if (detail) refreshNetworkDetails()
+        break
+      case "disk":
+        refreshDisk()
+        break
+      case "gpu":
+        if (!availableGpus.length) refreshGpuDiscovery()
+        else refreshSelectedGpuMetrics()
+        break
+      case "storage":
+        refreshMounts()
+        break
+      }
     }
     if (detail) tooltipEpoch += 1
   }
@@ -640,7 +688,7 @@ Ui.Panel {
 
   function refreshCpu(includeCores) {
     // Keep per-core samples flowing when CPU is pinned so the bar tooltip stays current.
-    cpuIncludeCores = (includeCores !== false) || barMetric === "cpu"
+    cpuIncludeCores = (includeCores !== false) || barMetricPinned("cpu")
     if (cpuProc.running) return
     cpuProc.command = ["cat", "/proc/stat"]
     cpuProc.running = true
@@ -703,7 +751,7 @@ Ui.Panel {
       networkInfoProc.running = true
     }
     var now = Date.now()
-    if (expandedModule === "network" || barMetric === "network" || now - lastNetworkProcessAt >= 15000)
+    if (expandedModule === "network" || barMetricPinned("network") || now - lastNetworkProcessAt >= 15000)
       refreshNetworkProcesses()
   }
 
@@ -937,11 +985,19 @@ Ui.Panel {
       gpuUsage: gpuUsage,
       storagePercent: storage ? Model.mountPercent(storage) : -1
     }
-    barMetricDisplayText = barMetricValueFromSnapshot(barMetric)
+    refreshBarMetricDisplayTexts()
+  }
+
+  function refreshBarMetricDisplayTexts() {
+    var texts = {}
+    for (var i = 0; i < barMetrics.length; i++)
+      texts[barMetrics[i]] = barMetricValueFromSnapshot(barMetrics[i])
+    barMetricDisplayTexts = texts
+    barMetricDisplayText = barMetric ? barMetricValueFromSnapshot(barMetric) : "…"
   }
 
   function touchBarMetricSnapshot(source) {
-    if (!barSyncPending || source !== barMetric) return
+    if (!barSyncPending || !barMetricPinned(source)) return
     barSyncPending = false
     syncBarMetricSnapshot()
   }
@@ -1034,24 +1090,38 @@ Ui.Panel {
       : expandedModule === moduleName
     var hint = "Left click · " + (expanded ? "collapse" : "expand")
       + "\nMiddle click · pin to bar"
-    if (barMetric === moduleName) hint += "\nPinned to bar"
+    if (barMetricPinned(moduleName)) hint += "\nPinned to bar"
     if (moduleName === "cpu" || moduleName === "memory" || moduleName === "network" || moduleName === "disk" || moduleName === "gpu")
       hint += "\nRight click · " + (moduleGraphEnabled(moduleName) ? "hide graph" : "show graph")
     return hint
   }
 
+  // Middle click toggles a tile in and out of the bar instead of replacing the
+  // pinned metric, so several can be shown side by side.
   function setBarMetric(metric) {
-    if (!metric || barMetric === metric) return
-    var next = Object.assign({}, root.settings, { barMetric: metric })
+    if (!metric || moduleOrder.indexOf(metric) < 0) return
+    var pinned = []
+    for (var i = 0; i < barMetrics.length; i++) pinned.push(String(barMetrics[i]))
+    var index = pinned.indexOf(metric)
+    if (index >= 0) pinned.splice(index, 1)
+    else pinned.push(metric)
+    var ordered = []
+    for (var j = 0; j < moduleOrder.length; j++)
+      if (pinned.indexOf(moduleOrder[j]) >= 0) ordered.push(moduleOrder[j])
+
+    var next = Object.assign({}, root.settings, { barMetric: ordered })
     root.settings = next
     if (root.hostWidget && "settings" in root.hostWidget) root.hostWidget.settings = next
     if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
       root.bar.shell.updateEntryInline(root.moduleName, next)
-    if (metric === "network") refreshNetwork()
-    else if (metric === "disk") refreshDisk()
-    else if (metric === "storage") refreshMounts()
-    else if (metric === "gpu") refreshGpuDiscovery()
-    if (barMetricSnapshot) barMetricDisplayText = barMetricValueFromSnapshot(metric)
+
+    if (index < 0) {
+      if (metric === "network") refreshNetwork()
+      else if (metric === "disk") refreshDisk()
+      else if (metric === "storage") refreshMounts()
+      else if (metric === "gpu") refreshGpuDiscovery()
+    }
+    if (barMetricSnapshot) refreshBarMetricDisplayTexts()
   }
 
   function setPollInterval(value) {
@@ -1885,7 +1955,7 @@ Ui.Panel {
     availableGpus = result
     updateSelectedGpuMetrics()
     refreshGpuHwmonBatch()
-    if (opened || barMetric === "gpu") refreshSelectedGpuMetrics()
+    if (opened || barMetricPinned("gpu")) refreshSelectedGpuMetrics()
     maybeSetupIntelGpu()
   }
 
@@ -2019,7 +2089,7 @@ Ui.Panel {
     if (!selected) return
     refreshGpuHwmonBatch()
     var wantFdInfo = gpuNeedsFdInfo()
-      && (expandedModule === "gpu" || barMetric === "gpu" || gpuFdInfoPollTick % 2 === 0)
+      && (expandedModule === "gpu" || barMetricPinned("gpu") || gpuFdInfoPollTick % 2 === 0)
     if (wantFdInfo && !gpuFdInfoProc.running) {
       gpuFdInfoPollTick += 1
       runTimedCommand(gpuFdInfoProc, gpuFdInfoTimeoutSec, ["bash", "-c",
