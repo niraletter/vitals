@@ -41,6 +41,7 @@ Ui.Panel {
   property string gpuName: ""
   property real gpuUsage: -1
   property real gpuTemperature: -1
+  property real gpuHotspotTemperature: -1
   property double gpuVramUsedBytes: -1
   property double gpuVramTotalBytes: -1
   property double gpuSharedMemoryBytes: -1
@@ -413,6 +414,8 @@ Ui.Panel {
   // The selected tile supplies the compact main-bar metric. It is persisted
   // in this widget's inline shell.json settings by setBarMetric().
   readonly property string barMetric: String(setting("barMetric", "memory"))
+  readonly property string gpuBarMode: String(setting("gpuBarMode", "usage")) === "hotspot"
+    ? "hotspot" : "usage"
   property var barMetricSnapshot: null
   property bool barSyncPending: false
   property string barMetricDisplayText: "…"
@@ -437,6 +440,7 @@ Ui.Panel {
     void diskWriteRate
     void gpuUsage
     void gpuTemperature
+    void gpuHotspotTemperature
     void gpuName
     void gpuVramUsedBytes
     void gpuVramTotalBytes
@@ -686,6 +690,16 @@ Ui.Panel {
       + "[ \"$v\" -gt \"$best_fan\" ] 2>/dev/null && best_fan=$v; "
       + "done; "
       + "[ \"$best_fan\" -gt 0 ] 2>/dev/null && echo \"$bdf fan $best_fan\"; "
+      + "for sensor in /sys/bus/pci/devices/$bdf/hwmon/hwmon*/temp*_input; do "
+      + "[ -f \"$sensor\" ] || continue; "
+      + "label_file=${sensor%_input}_label; "
+      + "[ -f \"$label_file\" ] || continue; "
+      + "label=$(tr '[:upper:]' '[:lower:]' < \"$label_file\" 2>/dev/null) || continue; "
+      + "case \"$label\" in edge|gpu) kind=chip ;; junction|hotspot) kind=hotspot ;; *) continue ;; esac; "
+      + "v=$(cat \"$sensor\" 2>/dev/null) || continue; "
+      + "[ \"${v%%.*}\" -gt 0 ] 2>/dev/null || continue; "
+      + "echo \"$bdf $kind $v\"; "
+      + "done; "
       + "done"
     gpuHwmonBatchProc.command = ["bash", "-c", script]
     gpuHwmonBatchProc.running = true
@@ -935,6 +949,7 @@ Ui.Panel {
       networkRxRate: networkRxRate,
       diskReadRate: diskReadRate,
       gpuUsage: gpuUsage,
+      gpuHotspotTemperature: gpuHotspotTemperature,
       storagePercent: storage ? Model.mountPercent(storage) : -1
     }
     barMetricDisplayText = barMetricValueFromSnapshot(barMetric)
@@ -954,6 +969,10 @@ Ui.Panel {
     if (metric === "network") return "↓ " + Model.formatRate(snap.networkRxRate)
     if (metric === "disk") return "R " + Model.formatRate(snap.diskReadRate)
     if (metric === "gpu") {
+      if (gpuBarMode === "hotspot") {
+        var hotspot = snap.gpuHotspotTemperature
+        return hotspot >= 0 ? Math.round(hotspot) + "°C" : "…"
+      }
       var usage = snap.gpuUsage
       return usage >= 0 ? Math.round(usage) + "%" : "…"
     }
@@ -1008,11 +1027,11 @@ Ui.Panel {
     }
     if (metric === "gpu") {
       var gpuLines = []
-      if (gpuUsage >= 0) {
-        var usageLine = Math.round(gpuUsage) + "%"
-        if (gpuTemperature >= 0) usageLine += " · " + Math.round(gpuTemperature) + "°C"
-        gpuLines.push(usageLine)
-      }
+      if (gpuUsage >= 0) gpuLines.push(Math.round(gpuUsage) + "% active")
+      var gpuTemperatures = []
+      if (gpuTemperature >= 0) gpuTemperatures.push("Chip " + Math.round(gpuTemperature) + "°C")
+      if (gpuHotspotTemperature >= 0) gpuTemperatures.push("Hotspot " + Math.round(gpuHotspotTemperature) + "°C")
+      if (gpuTemperatures.length) gpuLines.push(gpuTemperatures.join(" · "))
       if (gpuVramTotalBytes > 0)
         gpuLines.push("VRAM · " + Model.formatBytes(gpuVramUsedBytes) + " / " + Model.formatBytes(gpuVramTotalBytes))
       else if (gpuUsesSharedMemory && gpuSharedMemoryBytes >= 0)
@@ -1033,7 +1052,10 @@ Ui.Panel {
       ? cpuCoresExpanded
       : expandedModule === moduleName
     var hint = "Left click · " + (expanded ? "collapse" : "expand")
-      + "\nMiddle click · pin to bar"
+    if (moduleName === "gpu" && barMetric === "gpu")
+      hint += "\nMiddle click · show " + (gpuBarMode === "hotspot" ? "GPU load" : "hotspot") + " on bar"
+    else
+      hint += "\nMiddle click · pin to bar"
     if (barMetric === moduleName) hint += "\nPinned to bar"
     if (moduleName === "cpu" || moduleName === "memory" || moduleName === "network" || moduleName === "disk" || moduleName === "gpu")
       hint += "\nRight click · " + (moduleGraphEnabled(moduleName) ? "hide graph" : "show graph")
@@ -1041,7 +1063,12 @@ Ui.Panel {
   }
 
   function setBarMetric(metric) {
-    if (!metric || barMetric === metric) return
+    if (!metric) return
+    if (metric === "gpu" && barMetric === "gpu") {
+      setGpuBarMode(gpuBarMode === "hotspot" ? "usage" : "hotspot")
+      return
+    }
+    if (barMetric === metric) return
     var next = Object.assign({}, root.settings, { barMetric: metric })
     root.settings = next
     if (root.hostWidget && "settings" in root.hostWidget) root.hostWidget.settings = next
@@ -1052,6 +1079,18 @@ Ui.Panel {
     else if (metric === "storage") refreshMounts()
     else if (metric === "gpu") refreshGpuDiscovery()
     if (barMetricSnapshot) barMetricDisplayText = barMetricValueFromSnapshot(metric)
+  }
+
+  function setGpuBarMode(mode) {
+    var normalized = mode === "hotspot" ? "hotspot" : "usage"
+    if (gpuBarMode === normalized) return
+    var next = Object.assign({}, root.settings, { gpuBarMode: normalized })
+    root.settings = next
+    if (root.hostWidget && "settings" in root.hostWidget) root.hostWidget.settings = next
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, next)
+    syncBarMetricSnapshot()
+    refreshSelectedGpuMetrics()
   }
 
   function setPollInterval(value) {
@@ -1195,7 +1234,8 @@ Ui.Panel {
       var selectedGpu = availableGpus[selectedGpuIndex]
       var gpuMetric = selectedGpu ? gpuMetricsByBdf[normalizeBdf(selectedGpu.bdf)] || ({}) : ({})
       rows.push({ label: selectedGpu ? selectedGpu.displayName : "GPU", value: root.gpuDisplayValue() })
-      if (gpuMetric.temperature >= 0) rows.push({ label: "Temperature", value: Math.round(gpuMetric.temperature) + "°C" })
+      if (gpuMetric.temperature >= 0) rows.push({ label: "Chip temperature", value: Math.round(gpuMetric.temperature) + "°C" })
+      if (gpuMetric.hotspotTemperature >= 0) rows.push({ label: "Hotspot temperature", value: Math.round(gpuMetric.hotspotTemperature) + "°C" })
       if (gpuMetric.vramTotalBytes > 0)
         rows.push({ label: "VRAM", value: Model.formatBytes(gpuMetric.vramUsedBytes) + " / " + Model.formatBytes(gpuMetric.vramTotalBytes) })
       else if (gpuMetric.sharedMemoryBytes >= 0)
@@ -1218,6 +1258,7 @@ Ui.Panel {
       gpuName = ""
       gpuUsage = -1
       gpuTemperature = -1
+      gpuHotspotTemperature = -1
       gpuVramUsedBytes = -1
       gpuVramTotalBytes = -1
       gpuSharedMemoryBytes = -1
@@ -1232,6 +1273,7 @@ Ui.Panel {
     var stat = selectedGpuStats()
     gpuUsage = stat ? metricOrUnknown(stat.usage) : -1
     gpuTemperature = stat ? metricOrUnknown(stat.temperature) : -1
+    gpuHotspotTemperature = stat ? metricOrUnknown(stat.hotspotTemperature) : -1
     gpuVramUsedBytes = stat ? metricOrUnknown(stat.vramUsedBytes) : -1
     gpuVramTotalBytes = stat ? metricOrUnknown(stat.vramTotalBytes) : -1
     gpuSharedMemoryBytes = stat ? metricOrUnknown(stat.sharedMemoryBytes) : -1
@@ -1514,6 +1556,7 @@ Ui.Panel {
 
   function parseGpuHwmonBatch(raw) {
     var lines = String(raw || "").trim().split("\n")
+    var metricsByBdf = ({})
     for (var index = 0; index < lines.length; index++) {
       var parts = lines[index].trim().split(/\s+/)
       if (parts.length < 3) continue
@@ -1522,8 +1565,12 @@ Ui.Panel {
       var kind = parts[1]
       var value = metricOrUnknown(parts[2])
       if (value <= 0) continue
-      if (kind === "fan") updateGpuMetric(bdf, { fanRpm: value })
+      if (!metricsByBdf[bdf]) metricsByBdf[bdf] = ({})
+      if (kind === "fan") metricsByBdf[bdf].fanRpm = value
+      else if (kind === "chip") metricsByBdf[bdf].temperature = value / 1000
+      else if (kind === "hotspot") metricsByBdf[bdf].hotspotTemperature = value / 1000
     }
+    for (var bdf in metricsByBdf) updateGpuMetric(bdf, metricsByBdf[bdf])
   }
 
   function chipSensorTemperature(entry) {
@@ -2041,10 +2088,6 @@ Ui.Panel {
       }
       return
     }
-    if (String(selected.vendor) === "AMD" && !gpuSensorFindProc.running) {
-      gpuSensorFindProc.command = ["find", "/sys/bus/pci/devices/" + selectedGpuBdf + "/hwmon", "-type", "f", "-name", "temp*_input", "-print", "-quit"]
-      gpuSensorFindProc.running = true
-    }
     if (String(selected.vendor) === "AMD") {
       if (!gpuVramUsedProc.running) {
         gpuVramUsedProc.command = ["cat", "/sys/bus/pci/devices/" + selectedGpuBdf + "/mem_info_vram_used"]
@@ -2365,7 +2408,8 @@ Ui.Panel {
     var values = []
     var intelHint = gpuIntelSetupHint()
     if (intelHint) values.push(intelHint)
-    if (gpuTemperature >= 0) values.push(Math.round(gpuTemperature) + "°C")
+    if (gpuTemperature >= 0) values.push("Chip " + Math.round(gpuTemperature) + "°C")
+    if (gpuHotspotTemperature >= 0) values.push("Hotspot " + Math.round(gpuHotspotTemperature) + "°C")
     if (gpuVramTotalBytes > 0) values.push("VRAM " + Model.formatBytes(gpuVramUsedBytes) + " / " + Model.formatBytes(gpuVramTotalBytes))
     else if (gpuUsesSharedMemory) values.push(gpuSharedMemoryBytes >= 0 ? "Shared " + Model.formatBytes(gpuSharedMemoryBytes) + " / " + Model.formatMemory(totalMemoryKB) + " RAM" : "Integrated · shared system memory")
     else values.push("VRAM not reported by driver")
@@ -2859,32 +2903,8 @@ Ui.Panel {
   }
 
   Process {
-    id: gpuSensorFindProc
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var path = String(text || "").trim()
-        if (!path || gpuTemperatureProc.running) return
-        gpuTemperatureProc.command = ["cat", path]
-        gpuTemperatureProc.running = true
-      }
-    }
-  }
-
-  Process {
     id: gpuHwmonBatchProc
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.parseGpuHwmonBatch(text) }
-  }
-
-  Process {
-    id: gpuTemperatureProc
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var milliCelsius = root.metricOrUnknown(text)
-        if (milliCelsius >= 0) root.updateGpuMetric(root.selectedGpuBdf, { temperature: milliCelsius / 1000 })
-      }
-    }
   }
 
   Process {

@@ -38,7 +38,7 @@ omarchy restart shell
 | :--- | :--- |
 | **Bar** | Pin CPU, memory, GPU, storage, disk, or network to the top bar. |
 | **CPU & memory** | Usage, temperature, fans, uptime, per-core load, RAM, and swap. |
-| **GPU** | Intel, AMD, and NVIDIA. Usage, temperature, VRAM, and per-app stats. |
+| **GPU** | Intel, AMD, and NVIDIA. Usage, chip/hotspot temperature, VRAM, and per-app stats. |
 | **Storage & network** | Disk space, I/O speeds, live rates, and **WIFI** / **ETH** labels. |
 | **Processes** | Search, filter, sort, inspect commands, and end tasks. |
 | **Dashboard** | Expand tiles for more detail. Optional mini graphs. |
@@ -90,6 +90,7 @@ The widget can be configured in `~/.config/omarchy/shell.json`. Add or edit the 
 {
   "id": "vitals",
   "barMetric": "memory",
+  "gpuBarMode": "usage",
   "cpuCoreViewMode": "bar",
   "gpuGraphEnabled": true,
   "moduleGraphEnabled": {
@@ -107,6 +108,7 @@ The widget can be configured in `~/.config/omarchy/shell.json`. Add or edit the 
 
 **Options:**
 - `barMetric`: `cpu`, `memory`, `gpu`, `storage`, `disk`, or `network`
+- `gpuBarMode`: `usage` or `hotspot` when GPU is pinned (default `usage`). Hotspot requires a labeled `junction`/`hotspot` hwmon sensor.
 - `cpuCoreViewMode`: `bar`, `fill`, or `spark` (bars, vertical fill, or mini graph)
 - `gpuGraphEnabled`: Show/hide GPU graph
 - `pollIntervalMs`: 500–15000 ms (default 3000). Lower values update more frequently.
@@ -122,7 +124,7 @@ The widget can be configured in `~/.config/omarchy/shell.json`. Add or edit the 
 | | Click **−** or **+** | Slow down or speed up polling |
 | | Click **↻** | Refresh tiles now |
 | **Metrics** | Left-click tile | Expand/collapse details |
-| | Middle-click tile | Pin metric to top bar |
+| | Middle-click tile | Pin metric to top bar; when GPU is already pinned, switch between load and hotspot temperature |
 | | Right-click tile | Toggle sparkline graph (CPU, memory, network, disk, GPU) |
 | | Right-click CPU core | Cycle core view: bars → fill → graph |
 | | Click **GPU:** (multi-GPU) | Switch monitored GPU |
