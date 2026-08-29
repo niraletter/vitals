@@ -36,7 +36,7 @@ omarchy restart shell
 
 | Feature | Description |
 | :--- | :--- |
-| **Bar** | Pin CPU, memory, GPU, storage, disk, or network to the top bar. |
+| **Bar** | Pin CPU, memory, GPU, storage, disk, or network to the top bar. Network shows down/up; disk shows read/write. |
 | **CPU & memory** | Usage, temperature, fans, uptime, per-core load, RAM, and swap. |
 | **GPU** | Intel, AMD, and NVIDIA. Usage, chip/hotspot temperature, VRAM, and per-app stats. |
 | **Storage & network** | Disk space, I/O speeds, live rates, and **WIFI** / **ETH** labels. |
@@ -102,12 +102,14 @@ The widget can be configured in `~/.config/omarchy/shell.json`. Add or edit the 
   "moduleGridHeight": 300,
   "processListHeight": 255,
   "pollIntervalMs": 3000,
-  "backgroundPollIntervalMs": 5000
+  "backgroundPollIntervalMs": 5000,
+  "barTooltip": true
 }
 ```
 
 **Options:**
 - `barMetric`: `cpu`, `memory`, `gpu`, `storage`, `disk`, or `network`
+- `barTooltip`: `true` (default) to show the hover preview, `false` to hide it
 - `gpuBarMode`: `usage` or `hotspot` when GPU is pinned (default `usage`). Hotspot requires a labeled `junction`/`hotspot` hwmon sensor.
 - `cpuCoreViewMode`: `bar`, `fill`, or `spark` (bars, vertical fill, or mini graph)
 - `gpuGraphEnabled`: Show/hide GPU graph
@@ -118,7 +120,7 @@ The widget can be configured in `~/.config/omarchy/shell.json`. Add or edit the 
 
 | Context | Action | Result |
 | :--- | :--- | :--- |
-| **Bar** | Hover | Tooltip with pinned metric stats |
+| **Bar** | Hover | Tooltip with pinned metric stats (disable with `barTooltip: false`) |
 | **Dashboard** | Left-click bar | Open/close dashboard |
 | | Middle-click bar | Refresh tiles (when open) or bar metric (when closed) |
 | | Click **−** or **+** | Slow down or speed up polling |

@@ -422,7 +422,9 @@ Ui.Panel {
   readonly property string barLabel: barMetric === "network"
     ? barMetricDisplayText
     : barIcon(barMetric) + " " + barMetricDisplayText
+  readonly property bool barTooltipEnabled: setting("barTooltip", true) !== false
   readonly property string barTooltip: {
+    if (!barTooltipEnabled) return ""
     void tooltipEpoch
     void cpuUsage
     void cpuTemperature
@@ -769,18 +771,18 @@ Ui.Panel {
     refreshNetwork()
   }
 
-  function formatNetworkAddresses(entry) {
+  function formatNetworkAddresses(entry, ipv4Only) {
     if (!entry) return ""
     var parts = []
     if (entry.ipv4) parts.push(entry.ipv4)
-    if (entry.ipv6) parts.push(entry.ipv6)
+    if (!ipv4Only && entry.ipv6) parts.push(entry.ipv6)
     return parts.join(" · ")
   }
 
-  function networkInterfaceAddress(name) {
+  function networkInterfaceAddress(name, ipv4Only) {
     for (var index = 0; index < networkInterfaces.length; index++) {
       if (networkInterfaces[index].name === name)
-        return formatNetworkAddresses(networkInterfaces[index])
+        return formatNetworkAddresses(networkInterfaces[index], ipv4Only)
     }
     return ""
   }
@@ -947,7 +949,9 @@ Ui.Panel {
       cpuUsage: cpuUsage,
       memoryUsage: memoryUsage,
       networkRxRate: networkRxRate,
+      networkTxRate: networkTxRate,
       diskReadRate: diskReadRate,
+      diskWriteRate: diskWriteRate,
       gpuUsage: gpuUsage,
       gpuHotspotTemperature: gpuHotspotTemperature,
       storagePercent: storage ? Model.mountPercent(storage) : -1
@@ -964,22 +968,20 @@ Ui.Panel {
   function barMetricValueFromSnapshot(metric) {
     var snap = barMetricSnapshot
     if (!snap) return "…"
-    if (metric === "cpu") return Math.round(snap.cpuUsage) + "%"
-    if (metric === "memory") return Math.round(snap.memoryUsage) + "%"
-    if (metric === "network") return "↓ " + Model.formatRate(snap.networkRxRate)
-    if (metric === "disk") return "R " + Model.formatRate(snap.diskReadRate)
+    if (metric === "cpu") return Model.formatBarPercent(snap.cpuUsage)
+    if (metric === "memory") return Model.formatBarPercent(snap.memoryUsage)
+    if (metric === "network")
+      return "↓" + Model.formatBarRate(snap.networkRxRate) + " ↑" + Model.formatBarRate(snap.networkTxRate)
+    if (metric === "disk")
+      return "R" + Model.formatBarRate(snap.diskReadRate) + " W" + Model.formatBarRate(snap.diskWriteRate)
     if (metric === "gpu") {
       if (gpuBarMode === "hotspot") {
         var hotspot = snap.gpuHotspotTemperature
         return hotspot >= 0 ? Math.round(hotspot) + "°C" : "…"
       }
-      var usage = snap.gpuUsage
-      return usage >= 0 ? Math.round(usage) + "%" : "…"
+      return Model.formatBarPercent(snap.gpuUsage)
     }
-    if (metric === "storage") {
-      var percent = snap.storagePercent
-      return percent >= 0 ? percent + "%" : "…"
-    }
+    if (metric === "storage") return Model.formatBarPercent(snap.storagePercent)
     return "…"
   }
 
@@ -1015,7 +1017,7 @@ Ui.Panel {
       var networkLines = ["↓ " + Model.formatRate(networkRxRate) + " · ↑ " + Model.formatRate(networkTxRate)]
       var ifaceLabel = networkUsedInterfaceLabel()
       var iface = networkUsedInterface()
-      var address = networkInterfaceAddress(iface) || localIpAddress
+      var address = networkInterfaceAddress(iface, true)
       if (ifaceLabel || address) networkLines.push([ifaceLabel, address].filter(function(part) { return !!part }).join(" · "))
       var topNetwork = networkTopProcessLabel()
       if (topNetwork) networkLines.push(topNetwork)
