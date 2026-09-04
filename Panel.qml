@@ -266,7 +266,7 @@ Ui.Panel {
   function moduleTileSuffix(moduleName) {
     if (moduleDensity >= 4) return ""
     var suffix = ""
-    if (barMetric === moduleName) suffix += " •"
+    if (barShows(moduleName)) suffix += " •"
     var expanded = moduleName === "cpu" ? cpuCoresExpanded : expandedModule === moduleName
     suffix += " " + (expanded ? "⌃" : "⌄")
     return suffix
@@ -411,17 +411,30 @@ Ui.Panel {
     drawLineSeries(primary, 0.82, filled)
   }
 
-  // The selected tile supplies the compact main-bar metric. It is persisted
-  // in this widget's inline shell.json settings by setBarMetric().
-  readonly property string barMetric: String(setting("barMetric", "memory"))
+  // Compact bar metrics. `barMetrics` pins several tiles side by side;
+  // older configs stored a single `barMetric` string, which is still read.
+  readonly property var moduleOrder: ["cpu", "memory", "network", "disk", "gpu", "storage"]
+  readonly property var barMetrics: {
+    var ordered = normalizeBarMetrics(setting("barMetrics", null))
+    if (ordered.length) return ordered
+    ordered = normalizeBarMetrics(setting("barMetric", "memory"))
+    return ordered.length ? ordered : ["memory"]
+  }
+  readonly property string barMetric: barMetrics.length ? barMetrics[0] : "memory"
   readonly property string gpuBarMode: String(setting("gpuBarMode", "usage")) === "hotspot"
     ? "hotspot" : "usage"
   property var barMetricSnapshot: null
   property bool barSyncPending: false
   property string barMetricDisplayText: "…"
-  readonly property string barLabel: barMetric === "network"
-    ? barMetricDisplayText
-    : barIcon(barMetric) + " " + barMetricDisplayText
+  readonly property string barLabel: {
+    void barMetricDisplayText
+    var parts = []
+    for (var i = 0; i < barMetrics.length; i++) {
+      var metric = barMetrics[i]
+      parts.push(barIcon(metric) + " " + barMetricValueFromSnapshot(metric))
+    }
+    return parts.length ? parts.join("  ") : " …"
+  }
   readonly property string barTooltip: {
     void tooltipEpoch
     void cpuUsage
@@ -446,9 +459,37 @@ Ui.Panel {
     void gpuVramTotalBytes
     void gpuSharedMemoryBytes
     void mounts
-    return barMetricTooltip(barMetric, tooltipEpoch)
+    var parts = []
+    for (var i = 0; i < barMetrics.length; i++)
+      parts.push(barMetricTooltip(barMetrics[i], tooltipEpoch))
+    return parts.join("\n\n")
   }
   property int tooltipEpoch: 0
+
+  function normalizeBarMetrics(raw) {
+    // QML hands JSON arrays over as QVariantList, for which Array.isArray() is
+    // false, so detect list-likeness by shape instead of by type.
+    var list = (raw && typeof raw === "object" && typeof raw.length === "number")
+      ? raw
+      : (raw !== undefined && raw !== null && String(raw) !== "" ? [raw] : [])
+    var seen = {}
+    for (var i = 0; i < list.length; i++)
+      seen[String(list[i])] = true
+    var ordered = []
+    for (var j = 0; j < moduleOrder.length; j++)
+      if (seen[moduleOrder[j]]) ordered.push(moduleOrder[j])
+    return ordered
+  }
+
+  function barShows(metric) {
+    return barMetrics.indexOf(metric) >= 0
+  }
+
+  onBarMetricsChanged: {
+    if (barMetricSnapshot) barMetricDisplayText = barMetricValueFromSnapshot(barMetric)
+    tooltipEpoch += 1
+    if (!opened) refreshSummary(true)
+  }
 
   function notifyTooltipRefresh() {
     tooltipEpoch += 1
@@ -497,31 +538,19 @@ Ui.Panel {
   function refreshSummary(includeBarDetail) {
     if (opened) return
     var detail = includeBarDetail === true
-    switch (barMetric) {
-    case "cpu":
-      refreshCpu(detail)
-      break
-    case "memory":
-      refreshMemory()
-      break
-    case "network":
+    if (barShows("cpu")) refreshCpu(detail)
+    if (barShows("memory")) refreshMemory()
+    if (barShows("network")) {
       refreshNetworkRates()
       if (detail) refreshNetworkDetails()
-      break
-    case "disk":
-      refreshDisk()
-      break
-    case "gpu":
+    }
+    if (barShows("disk")) refreshDisk()
+    if (barShows("gpu")) {
       if (!availableGpus.length) refreshGpuDiscovery()
       else refreshSelectedGpuMetrics()
-      break
-    case "storage":
-      refreshMounts()
-      break
-    default:
-      refreshMemory()
-      break
     }
+    if (barShows("storage")) refreshMounts()
+    if (!barMetrics.length) refreshMemory()
     if (detail) tooltipEpoch += 1
   }
 
@@ -644,7 +673,7 @@ Ui.Panel {
 
   function refreshCpu(includeCores) {
     // Keep per-core samples flowing when CPU is pinned so the bar tooltip stays current.
-    cpuIncludeCores = (includeCores !== false) || barMetric === "cpu"
+    cpuIncludeCores = (includeCores !== false) || barShows("cpu")
     if (cpuProc.running) return
     cpuProc.command = ["cat", "/proc/stat"]
     cpuProc.running = true
@@ -717,7 +746,7 @@ Ui.Panel {
       networkInfoProc.running = true
     }
     var now = Date.now()
-    if (expandedModule === "network" || barMetric === "network" || now - lastNetworkProcessAt >= 15000)
+    if (expandedModule === "network" || barShows("network") || now - lastNetworkProcessAt >= 15000)
       refreshNetworkProcesses()
   }
 
@@ -956,7 +985,7 @@ Ui.Panel {
   }
 
   function touchBarMetricSnapshot(source) {
-    if (!barSyncPending || source !== barMetric) return
+    if (!barShows(source)) return
     barSyncPending = false
     syncBarMetricSnapshot()
   }
@@ -1052,33 +1081,40 @@ Ui.Panel {
       ? cpuCoresExpanded
       : expandedModule === moduleName
     var hint = "Left click · " + (expanded ? "collapse" : "expand")
-    if (moduleName === "gpu" && barMetric === "gpu")
+    if (moduleName === "gpu" && barShows("gpu") && barMetrics.length === 1)
       hint += "\nMiddle click · show " + (gpuBarMode === "hotspot" ? "GPU load" : "hotspot") + " on bar"
     else
-      hint += "\nMiddle click · pin to bar"
-    if (barMetric === moduleName) hint += "\nPinned to bar"
+      hint += "\nMiddle click · " + (barShows(moduleName) ? "unpin from bar" : "pin to bar")
+    if (barShows(moduleName)) hint += "\nPinned to bar"
     if (moduleName === "cpu" || moduleName === "memory" || moduleName === "network" || moduleName === "disk" || moduleName === "gpu")
       hint += "\nRight click · " + (moduleGraphEnabled(moduleName) ? "hide graph" : "show graph")
     return hint
   }
 
   function setBarMetric(metric) {
-    if (!metric) return
-    if (metric === "gpu" && barMetric === "gpu") {
+    if (!metric || moduleOrder.indexOf(metric) < 0) return
+    if (metric === "gpu" && barShows("gpu") && barMetrics.length === 1) {
       setGpuBarMode(gpuBarMode === "hotspot" ? "usage" : "hotspot")
       return
     }
-    if (barMetric === metric) return
-    var next = Object.assign({}, root.settings, { barMetric: metric })
-    root.settings = next
-    if (root.hostWidget && "settings" in root.hostWidget) root.hostWidget.settings = next
-    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
-      root.bar.shell.updateEntryInline(root.moduleName, next)
-    if (metric === "network") refreshNetwork()
-    else if (metric === "disk") refreshDisk()
-    else if (metric === "storage") refreshMounts()
-    else if (metric === "gpu") refreshGpuDiscovery()
-    if (barMetricSnapshot) barMetricDisplayText = barMetricValueFromSnapshot(metric)
+    var pinned = []
+    for (var i = 0; i < barMetrics.length; i++) pinned.push(String(barMetrics[i]))
+    var index = pinned.indexOf(metric)
+    if (index >= 0) {
+      if (pinned.length === 1) return
+      pinned.splice(index, 1)
+    } else {
+      pinned.push(metric)
+    }
+    var ordered = normalizeBarMetrics(pinned)
+    persistSettings({ barMetrics: ordered, barMetric: ordered[0] })
+    if (index < 0) {
+      if (metric === "network") refreshNetwork()
+      else if (metric === "disk") refreshDisk()
+      else if (metric === "storage") refreshMounts()
+      else if (metric === "gpu") refreshGpuDiscovery()
+    }
+    if (barMetricSnapshot) barMetricDisplayText = barMetricValueFromSnapshot(ordered[0])
   }
 
   function setGpuBarMode(mode) {
@@ -1932,7 +1968,7 @@ Ui.Panel {
     availableGpus = result
     updateSelectedGpuMetrics()
     refreshGpuHwmonBatch()
-    if (opened || barMetric === "gpu") refreshSelectedGpuMetrics()
+    if (opened || barShows("gpu")) refreshSelectedGpuMetrics()
     maybeSetupIntelGpu()
   }
 
@@ -2066,7 +2102,7 @@ Ui.Panel {
     if (!selected) return
     refreshGpuHwmonBatch()
     var wantFdInfo = gpuNeedsFdInfo()
-      && (expandedModule === "gpu" || barMetric === "gpu" || gpuFdInfoPollTick % 2 === 0)
+      && (expandedModule === "gpu" || barShows("gpu") || gpuFdInfoPollTick % 2 === 0)
     if (wantFdInfo && !gpuFdInfoProc.running) {
       gpuFdInfoPollTick += 1
       runTimedCommand(gpuFdInfoProc, gpuFdInfoTimeoutSec, ["bash", "-c",

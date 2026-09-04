@@ -36,7 +36,7 @@ omarchy restart shell
 
 | Feature | Description |
 | :--- | :--- |
-| **Bar** | Pin CPU, memory, GPU, storage, disk, or network to the top bar. |
+| **Bar** | Pin one or more of CPU, memory, GPU, storage, disk, or network to the top bar. |
 | **CPU & memory** | Usage, temperature, fans, uptime, per-core load, RAM, and swap. |
 | **GPU** | Intel, AMD, and NVIDIA. Usage, chip/hotspot temperature, VRAM, and per-app stats. |
 | **Storage & network** | Disk space, I/O speeds, live rates, and **WIFI** / **ETH** labels. |
@@ -90,6 +90,7 @@ The widget can be configured in `~/.config/omarchy/shell.json`. Add or edit the 
 {
   "id": "vitals",
   "barMetric": "memory",
+  "barMetrics": ["cpu", "memory", "network"],
   "gpuBarMode": "usage",
   "cpuCoreViewMode": "bar",
   "gpuGraphEnabled": true,
@@ -107,7 +108,8 @@ The widget can be configured in `~/.config/omarchy/shell.json`. Add or edit the 
 ```
 
 **Options:**
-- `barMetric`: `cpu`, `memory`, `gpu`, `storage`, `disk`, or `network`
+- `barMetric`: `cpu`, `memory`, `gpu`, `storage`, `disk`, or `network` (legacy single pin; still used as a fallback)
+- `barMetrics`: array of the same names, shown side by side on the bar. Middle-click a tile to toggle it. Older configs with only `barMetric` keep working.
 - `gpuBarMode`: `usage` or `hotspot` when GPU is pinned (default `usage`). Hotspot requires a labeled `junction`/`hotspot` hwmon sensor.
 - `cpuCoreViewMode`: `bar`, `fill`, or `spark` (bars, vertical fill, or mini graph)
 - `gpuGraphEnabled`: Show/hide GPU graph
@@ -124,7 +126,7 @@ The widget can be configured in `~/.config/omarchy/shell.json`. Add or edit the 
 | | Click **−** or **+** | Slow down or speed up polling |
 | | Click **↻** | Refresh tiles now |
 | **Metrics** | Left-click tile | Expand/collapse details |
-| | Middle-click tile | Pin metric to top bar; when GPU is already pinned, switch between load and hotspot temperature |
+| | Middle-click tile | Toggle metric on the bar. If GPU is the only pinned metric, switch between load and hotspot temperature |
 | | Right-click tile | Toggle sparkline graph (CPU, memory, network, disk, GPU) |
 | | Right-click CPU core | Cycle core view: bars → fill → graph |
 | | Click **GPU:** (multi-GPU) | Switch monitored GPU |
@@ -146,7 +148,7 @@ These are saved in `~/.config/omarchy/shell.json`:
 
 | Setting | Persisted |
 | :--- | :--- |
-| Pinned bar metric | Yes |
+| Pinned bar metrics | Yes |
 | Module/process splitter size | Yes |
 | Poll interval | Yes |
 | Graph toggles | Yes |
