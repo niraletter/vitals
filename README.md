@@ -51,11 +51,6 @@ Omarchy with the shell plugin system and Quickshell bar widget support. Missing 
 
 | Tool | Provides |
 | :--- | :--- |
-| `ps` | Process data |
-| `df` | Filesystem capacity |
-| `ip` | Local address information |
-| `ss` | Per-process network bandwidth (`ss -tanpi`) |
-| `lspci` | GPU discovery |
 | `intel_gpu_top` (`intel-gpu-tools`) | Intel GPU device usage (i915 PMU) |
 | `pkexec` / polkit | One-time Intel GPU install and `CAP_PERFMON` setup prompts |
 | `sensors` | Additional temperatures (`lm_sensors`) |
