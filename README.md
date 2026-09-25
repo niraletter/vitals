@@ -77,80 +77,6 @@ If the GPU tile shows **PMU access needed**, `cap_perfmon` is not granted — ru
 
 Per-process Intel GPU stats use DRM fdinfo (shared memory and per-app engine time).
 
-## Configuration
-
-The widget can be configured in `~/.config/omarchy/shell.json`. Add or edit the `vitals` entry:
-
-```json
-{
-  "id": "vitals",
-  "barMetric": "memory",
-  "barMetrics": ["cpu", "memory", "network"],
-  "gpuBarMode": "usage",
-  "cpuCoreViewMode": "bar",
-  "gpuGraphEnabled": true,
-  "moduleGraphEnabled": {
-    "cpu": true,
-    "memory": true,
-    "network": true,
-    "disk": true
-  },
-  "moduleGridHeight": 300,
-  "processListHeight": 255,
-  "pollIntervalMs": 3000,
-  "backgroundPollIntervalMs": 5000
-}
-```
-
-**Options:**
-- `barMetric`: `cpu`, `memory`, `gpu`, `storage`, `disk`, or `network` (legacy single pin; still used as a fallback)
-- `barMetrics`: array of the same names, shown side by side on the bar. Middle-click a tile to toggle it. Older configs with only `barMetric` keep working.
-- `gpuBarMode`: `usage` or `hotspot` when GPU is pinned (default `usage`). Hotspot requires a labeled `junction`/`hotspot` hwmon sensor.
-- `cpuCoreViewMode`: `bar`, `fill`, or `spark` (bars, vertical fill, or mini graph)
-- `gpuGraphEnabled`: Show/hide GPU graph
-- `pollIntervalMs`: 500–15000 ms (default 3000). Lower values update more frequently.
-- `backgroundPollIntervalMs`: Optional. Slows Intel GPU sampling while dashboard is closed.
-
-## Controls
-
-| Context | Action | Result |
-| :--- | :--- | :--- |
-| **Bar** | Hover | Tooltip with pinned metric stats |
-| **Dashboard** | Left-click bar | Open/close dashboard |
-| | Middle-click bar | Refresh tiles (when open) or bar metric (when closed) |
-| | Click **−** or **+** | Slow down or speed up polling |
-| | Click **↻** | Refresh tiles now |
-| **Metrics** | Left-click tile | Expand/collapse details |
-| | Middle-click tile | Toggle metric on the bar. If GPU is the only pinned metric, switch between load and hotspot temperature |
-| | Right-click tile | Toggle sparkline graph (CPU, memory, network, disk, GPU) |
-| | Right-click CPU core | Cycle core view: bars → fill → graph |
-| | Click **GPU:** (multi-GPU) | Switch monitored GPU |
-| **Process list** | Click search field | Focus search (filters as you type) |
-| | Click **All**, **User**, or **System** | Filter process type |
-| | Left-click column header | Sort by column (RSS by default) |
-| | Right-click Memory column | Switch between RSS and PSS |
-| | Left-click process row | Show full command details |
-| | Right-click process row | Toggle process tree |
-| | Click **clear** icon | Clear search query |
-| | Click floating **↑** or **↓** | Jump to first/last process |
-| | Click **Terminate** or **Kill** | Send SIGTERM or SIGKILL |
-| **Layout** | Drag section divider | Resize metric grid and process list |
-| | Middle-click divider | Restore default layout |
-
-## Persisted settings
-
-These are saved in `~/.config/omarchy/shell.json`:
-
-| Setting | Persisted |
-| :--- | :--- |
-| Pinned bar metrics | Yes |
-| Module/process splitter size | Yes |
-| Poll interval | Yes |
-| Graph toggles | Yes |
-| CPU core view mode | Yes |
-| Primary network interface | Yes |
-| Expanded modules, process filter, sort | No (session only) |
-
 ## Updating and removing
 
 ```bash
@@ -159,8 +85,6 @@ omarchy plugin disable vitals
 omarchy plugin enable vitals
 omarchy plugin remove vitals --yes
 ```
-
-Disabling removes Vitals from the bar while keeping files and settings. Enabling again restores it.
 
 ## License
 
